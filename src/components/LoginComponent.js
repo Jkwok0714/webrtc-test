@@ -1,13 +1,22 @@
 import React, { Component } from "react";
 import { PORT_NUMBER, STUN_SERVER } from '../constants/index.js';
 
+import ChatAreaComponent from './ChatAreaComponent.js';
+import VideoCallComponent from './VideoCallComponent.jsx';
+
+import { setChannelListeners } from '../helpers/index';
+
 const iceConfig = {
     iceServers: [{ url: STUN_SERVER }]
 };
 
 const IP = '192.168.38.23';
 
-// let webkitRTCPeerConnection;
+/*
+    TODO:
+        --Move login state and messaging out of loginComponent
+
+*/
 
 export default class LoginComponent extends Component {
 
@@ -134,6 +143,7 @@ export default class LoginComponent extends Component {
         this.rtcConnection = rtcConnection;
         console.log('Created peer connection object', rtcConnection);
         this.setState({ loggedIn: this.state.ownPeer });
+        this.props.loginChange(true);
 
         //Configure ICE handling and inform other connections through socket when it's found
         rtcConnection.onicecandidate = (e) => {
@@ -165,7 +175,7 @@ export default class LoginComponent extends Component {
             });
 
             this.setState({ connectedTo: name });
-            this.rtcConnection.ondatachannel = e => this.setChannelListeners(e.channel);
+            this.rtcConnection.ondatachannel = e => setChannelListeners(e.channel, this);
         }, err => window.alert('Error in handling an offer', err));
     }
 
@@ -173,7 +183,7 @@ export default class LoginComponent extends Component {
     onAnswer (answer) {
         this.setState({ connectedTo: this.state.otherPeer });
         this.rtcConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        this.rtcConnection.ondatachannel = e => this.setChannelListeners(e.channel);
+        this.rtcConnection.ondatachannel = e => setChannelListeners(e.channel, this);
     }
 
     onCandidate (candidate) {
@@ -194,7 +204,6 @@ export default class LoginComponent extends Component {
             let messageObj = { sender: this.state.ownPeer, message: this.state.message };
             this.dataChannel.send(JSON.stringify(messageObj));
             this.displayMessage(messageObj);
-            // console.log('Sending message thru', this.dataChannel);
         } catch (e) {
             console.error('Error sending thru data channel', e.message ? e.message : e);
         }
@@ -208,25 +217,10 @@ export default class LoginComponent extends Component {
 
         this.dataChannel = this.rtcConnection.createDataChannel('rtcDataChannel', dataChannelOptions);
 
-        this.setChannelListeners(this.dataChannel);
+        setChannelListeners(this.dataChannel, this);
     }
 
-    setChannelListeners = (dataChannel) => {
-        dataChannel.onerror = err => {
-          console.error("Data channel error", err);
-        };
-
-        dataChannel.onopen = e => {
-          console.log("%cData channel opened", "color: green");
-        };
-
-        dataChannel.onmessage = e => {
-            let messageObj = JSON.parse(e.data);
-            this.displayMessage(messageObj);
-        };
-    }
-
-    displayMessage (message) {
+    displayMessage = (message) => {
         let newMessages = this.state.messages.slice(0);
         newMessages.push(message);
         this.setState({ messages: newMessages });
@@ -245,11 +239,7 @@ export default class LoginComponent extends Component {
               {loggedIn && <div>
                  {connectedTo !== '' ? (
                    <div className="login-field">
-                    <div className='chat-box'>
-                        {messages.map(msg => {
-                            return <div className='message'>{`${msg.sender}: ${msg.message}`}</div>
-                        })}
-                    </div>
+                    <ChatAreaComponent messages={messages} />
                      <input onChange={e => this.changeValue("message", e)} value={message} type="text" />
                      <button onClick={this.handleMessage}>Send</button>
                     </div>

@@ -6,7 +6,7 @@ exports.handleSocket = (connection, users) => {
   connection.on("message", message => {
     let data;
 
-    Helpers.log("GREEN", "Got a message from user");
+    // Helpers.log("GREEN", "Got a message from user");
     // console.log(message);
 
     try {

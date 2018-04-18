@@ -8,7 +8,8 @@ class App extends Component {
   
   state = {
     message: null,
-    stream: null
+    stream: null,
+    loggedIn: false
   };
 
   stream = null;
@@ -17,6 +18,10 @@ class App extends Component {
     //Get the video stream. This will only work if the app is hosted by a server, for security reasons
     //  With NPM start with webpack watch, a socket is created
     this.getVideoStream();
+  }
+
+  changeLoginStatus = (status) => {
+    this.setState({ loggedIn: status });
   }
 
   hasUserMedia () {
@@ -68,7 +73,15 @@ class App extends Component {
     this.getUserMedia();
 
     //Get webcam audio and video
-    navigator.getUserMedia({ video: true, audio: true }, (stream) => {
+    navigator.getUserMedia({
+        video: {
+          mandatory: {
+            maxWidth: 800,
+            maxHeight: 600
+          }
+        },
+        audio: true
+      }, (stream) => {
       //Store the stream so we can use it
       this.stream = stream;
 
@@ -87,7 +100,8 @@ class App extends Component {
           <img src={logo} className="App-logo" alt="logo" />
           <h1 className="App-title">Welcome to WabRTC</h1>
         </header>
-        <LoginComponent />
+        <LoginComponent loginChange={this.changeLoginStatus} />
+        {!this.state.loggedIn && <div>
         <div className='video-container'>
           <video ref="videoTag" autoPlay />
         </div>
@@ -103,6 +117,7 @@ class App extends Component {
           <button onClick={this.getVideoStream}>Get Video Stream</button>
         </div>
         <div>{message ? message : "---"}</div>
+        </div>}
       </div>;
   }
 }

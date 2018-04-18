@@ -18,11 +18,13 @@ export default class LoginComponent extends Component {
         connectedUser: null,
         ownConnection: null,
         loggedIn: null,
-        connectedTo: ''
+        connectedTo: '',
+        messages: []
     };
     connection = null;
     connectedUser = null;
     rtcConnection = null;
+    dataChannel = null;
 
     componentDidMount () {
         const socketUrl = `wss://${IP}:${PORT_NUMBER}`;
@@ -35,7 +37,7 @@ export default class LoginComponent extends Component {
     applyListenersToSocket (connection) {
         //Respond to socket events
         connection.onmessage = (message) => {
-            console.log('Socket got message:', message.data);
+            // console.log('Socket got message:', message.data);
             let data;
 
             try {
@@ -128,6 +130,7 @@ export default class LoginComponent extends Component {
         }
 
         let rtcConnection = new RTCPeerConnection(iceConfig);
+
         this.rtcConnection = rtcConnection;
         console.log('Created peer connection object', rtcConnection);
         this.setState({ loggedIn: this.state.ownPeer });
@@ -141,6 +144,9 @@ export default class LoginComponent extends Component {
                 });
             }
         };
+
+        //Establish data channel
+        this.openDataChannel();
     }
 
     //For when user is being called
@@ -159,6 +165,7 @@ export default class LoginComponent extends Component {
             });
 
             this.setState({ connectedTo: name });
+            this.rtcConnection.ondatachannel = e => this.setChannelListeners(e.channel);
         }, err => window.alert('Error in handling an offer', err));
     }
 
@@ -166,6 +173,7 @@ export default class LoginComponent extends Component {
     onAnswer (answer) {
         this.setState({ connectedTo: this.state.otherPeer });
         this.rtcConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        this.rtcConnection.ondatachannel = e => this.setChannelListeners(e.channel);
     }
 
     onCandidate (candidate) {
@@ -177,15 +185,55 @@ export default class LoginComponent extends Component {
     }
 
     handleMessage = () => {
-        this.send({
-            type: 'instantMessage',
-            message: this.state.message
-        });
+        // this.send({
+        //     type: 'instantMessage',
+        //     message: this.state.message
+        // });
+
+        try {
+            let messageObj = { sender: this.state.ownPeer, message: this.state.message };
+            this.dataChannel.send(JSON.stringify(messageObj));
+            this.displayMessage(messageObj);
+            // console.log('Sending message thru', this.dataChannel);
+        } catch (e) {
+            console.error('Error sending thru data channel', e.message ? e.message : e);
+        }
         this.setState({ message: '' });
     }
 
+    openDataChannel () {
+        let dataChannelOptions = { reliable: true };
+
+        console.log('%cOpening data channel', 'color: green');
+
+        this.dataChannel = this.rtcConnection.createDataChannel('rtcDataChannel', dataChannelOptions);
+
+        this.setChannelListeners(this.dataChannel);
+    }
+
+    setChannelListeners = (dataChannel) => {
+        dataChannel.onerror = err => {
+          console.error("Data channel error", err);
+        };
+
+        dataChannel.onopen = e => {
+          console.log("%cData channel opened", "color: green");
+        };
+
+        dataChannel.onmessage = e => {
+            let messageObj = JSON.parse(e.data);
+            this.displayMessage(messageObj);
+        };
+    }
+
+    displayMessage (message) {
+        let newMessages = this.state.messages.slice(0);
+        newMessages.push(message);
+        this.setState({ messages: newMessages });
+    }
+
     render () {
-        const { ownPeer, otherPeer, loggedIn, message, connectedTo } = this.state;
+        const { ownPeer, otherPeer, loggedIn, message, connectedTo, messages } = this.state;
 
         return <div className="login-form">
             {!loggedIn ? <div className="login-field">
@@ -197,6 +245,11 @@ export default class LoginComponent extends Component {
               {loggedIn && <div>
                  {connectedTo !== '' ? (
                    <div className="login-field">
+                    <div className='chat-box'>
+                        {messages.map(msg => {
+                            return <div className='message'>{`${msg.sender}: ${msg.message}`}</div>
+                        })}
+                    </div>
                      <input onChange={e => this.changeValue("message", e)} value={message} type="text" />
                      <button onClick={this.handleMessage}>Send</button>
                     </div>
@@ -205,7 +258,6 @@ export default class LoginComponent extends Component {
                      <input onChange={e => this.changeValue("otherPeer", e)} value={otherPeer} type="text" />
                      <button onClick={this.handleConnect}>Connect</button>
                      </div>
-
                  )}
               </div>}
           </div>;

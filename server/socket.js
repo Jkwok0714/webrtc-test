@@ -7,7 +7,7 @@ exports.handleSocket = (connection, users) => {
     let data;
 
     Helpers.log("GREEN", "Got a message from user");
-    console.log(message);
+    // console.log(message);
 
     try {
       data = JSON.parse(message);

@@ -1,6 +1,11 @@
 const express = require('express');
 const app = express();
 const path = require('path');
+
+const https = require('https');
+
+const fs = require('fs');
+
 const WebSocketServer = require('ws').Server;
 
 const Helpers = require('./helpers/index.js');
@@ -26,9 +31,28 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname + '/../build/index.html'));
 });
 
-app.listen(PORT_NUMBER, () => Helpers.log('CYAN', 'Application listening on port', PORT_NUMBER, 'serving static from', STATIC_PATH));
+// app.listen(PORT_NUMBER, () => Helpers.log('CYAN', 'Application listening on port', PORT_NUMBER, 'serving static from', STATIC_PATH));
+
+Helpers.log(
+  "CYAN",
+  "Application listening on port",
+  PORT_NUMBER,
+  "serving static from",
+  STATIC_PATH
+);
+
+let httpsServer = https
+  .createServer(
+    {
+      key: fs.readFileSync("keys/private.key"),
+      cert: fs.readFileSync("keys/server.crt")
+    },
+    app
+  );
+
+httpsServer.listen(PORT_NUMBER);
 
 //WS server
-let wss = new WebSocketServer({ port: SOCKET_PORT });
+let wss = new WebSocketServer({ server: httpsServer });
 
 wss.on('connection', (connection) => handleSocket(connection, users));

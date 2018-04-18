@@ -5,6 +5,8 @@ const iceConfig = {
     iceServers: [{ url: STUN_SERVER }]
 };
 
+const IP = '192.168.38.23';
+
 // let webkitRTCPeerConnection;
 
 export default class LoginComponent extends Component {
@@ -12,15 +14,18 @@ export default class LoginComponent extends Component {
     state = {
         ownPeer: '',
         otherPeer: '',
+        message: '',
         connectedUser: null,
-        ownConnection: null
+        ownConnection: null,
+        loggedIn: null,
+        connectedTo: ''
     };
     connection = null;
     connectedUser = null;
     rtcConnection = null;
 
     componentDidMount () {
-        const socketUrl = `ws://localhost:${PORT_NUMBER}`;
+        const socketUrl = `wss://${IP}:${PORT_NUMBER}`;
         console.log('connecting socket address', socketUrl);
         this.connection = new WebSocket(socketUrl);
 
@@ -28,6 +33,7 @@ export default class LoginComponent extends Component {
     }
 
     applyListenersToSocket (connection) {
+        //Respond to socket events
         connection.onmessage = (message) => {
             console.log('Socket got message:', message.data);
             let data;
@@ -52,6 +58,9 @@ export default class LoginComponent extends Component {
               case "candidate":
                 this.onCandidate(data.candidate);
                 break;
+              case 'instantMessage':
+                this.onInstantMessage(data.message);
+                break;
               case "serverMessage":
                 console.log("Server says:", data.message);
                 break;
@@ -68,6 +77,10 @@ export default class LoginComponent extends Component {
         connection.onerror = (err) => {
             console.log('%cError on socket connection', 'color: red');
         }
+
+        connection.ondisconnected = () => {
+            window.alert('Disconnected');
+        };
     }
 
     changeValue = (value, e) => {
@@ -88,10 +101,10 @@ export default class LoginComponent extends Component {
 
     handleConnect = () => {
         let otherUser = this.state.otherPeer;
-        let connectedUser = otherUser;
+        this.connectedUser = otherUser;
 
         if (otherUser.trim().length > 0) {
-            //Create an offer if username is existing
+            //Create an offer if username exists
             this.rtcConnection.createOffer((offer) => {
                 console.log('Creating RTC offer');
                 this.send({ type: 'offer', offer: offer });
@@ -101,8 +114,8 @@ export default class LoginComponent extends Component {
     }
 
     send = (message) => {
-        if (this.state.connectedUser) {
-            message.name = this.state.connectedUser;
+        if (this.connectedUser) {
+            message.name = this.connectedUser;
         }
 
         this.connection.send(JSON.stringify(message));
@@ -117,8 +130,9 @@ export default class LoginComponent extends Component {
         let rtcConnection = new RTCPeerConnection(iceConfig);
         this.rtcConnection = rtcConnection;
         console.log('Created peer connection object', rtcConnection);
+        this.setState({ loggedIn: this.state.ownPeer });
 
-        //Configure ICE handling and inform other connections when it's found
+        //Configure ICE handling and inform other connections through socket when it's found
         rtcConnection.onicecandidate = (e) => {
             if (e.candidate) {
                 this.send({
@@ -129,9 +143,12 @@ export default class LoginComponent extends Component {
         };
     }
 
+    //For when user is being called
     onOffer (offer, name) {
         this.connectedUser = name;
         this.rtcConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+        console.log('onOffer name', name);
 
         this.rtcConnection.createAnswer((answer) => {
             this.rtcConnection.setLocalDescription(answer);
@@ -140,10 +157,14 @@ export default class LoginComponent extends Component {
                 type: 'answer',
                 answer: answer
             });
+
+            this.setState({ connectedTo: name });
         }, err => window.alert('Error in handling an offer', err));
     }
 
+    //For when a local user's offer is accepted
     onAnswer (answer) {
+        this.setState({ connectedTo: this.state.otherPeer });
         this.rtcConnection.setRemoteDescription(new RTCSessionDescription(answer));
     }
 
@@ -151,18 +172,42 @@ export default class LoginComponent extends Component {
         this.rtcConnection.addIceCandidate(new RTCIceCandidate(candidate));
     }
 
+    onInstantMessage (message) {
+        window.alert(message);
+    }
+
+    handleMessage = () => {
+        this.send({
+            type: 'instantMessage',
+            message: this.state.message
+        });
+        this.setState({ message: '' });
+    }
+
     render () {
-        const { ownPeer, otherPeer } = this.state;
+        const { ownPeer, otherPeer, loggedIn, message, connectedTo } = this.state;
 
         return <div className="login-form">
-            <div className="login-field">
-              <input onChange={e => this.changeValue("ownPeer", e)} value={ownPeer} type="text" />
-              <button onClick={this.handleLogin}>Login</button>
-            </div>
-            <div className="login-field">
-              <input onChange={e => this.changeValue("otherPeer", e)} value={otherPeer} type="text" />
-              <button onClick={this.handleConnect}>Connect</button>
-            </div>
+            {!loggedIn ? <div className="login-field">
+                <input onChange={e => this.changeValue("ownPeer", e)} value={ownPeer} type="text" />
+                <button onClick={this.handleLogin}>Login</button>
+              </div> : <div>
+                You are connected as {this.state.loggedIn} {connectedTo !== '' && `and connected to ${connectedTo}`}
+              </div>}
+              {loggedIn && <div>
+                 {connectedTo !== '' ? (
+                   <div className="login-field">
+                     <input onChange={e => this.changeValue("message", e)} value={message} type="text" />
+                     <button onClick={this.handleMessage}>Send</button>
+                    </div>
+                 ) : (
+                     <div className="login-field">
+                     <input onChange={e => this.changeValue("otherPeer", e)} value={otherPeer} type="text" />
+                     <button onClick={this.handleConnect}>Connect</button>
+                     </div>
+
+                 )}
+              </div>}
           </div>;
     }
 }

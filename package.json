@@ -14,7 +14,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject",
-    "express": "nodemon server/index.js"
+    "express": "nodemon server/index.js",
+    "deploy": "react-scripts build && node server/index.js"
   },
   "devDependencies": {
     "nodemon": "^1.17.3"

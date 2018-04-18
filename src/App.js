@@ -32,34 +32,35 @@ class App extends Component {
     return navigator.getUserMedia;
   }
 
-  getAudioTracks = () => {
-    // console.log('stream', this.stream);
-    this.setMessage(this.stream.getAudioTracks());
-  }
-
-  getVideoTracks = () => {
-    this.setMessage(this.stream.getVideoTracks());
-  }
-
-  getTracks = () => {
-    this.setMessage(this.stream.getTracks());
-  }
-
-  popAudioTrack = () => {
-    this.stream.removeTrack(this.stream.getAudioTracks()[0]);
-  }
-
-  popVideoTrack = () => {
-    this.stream.removeTrack(this.stream.getVideoTracks()[0]);
+  handleDemoButtons = (action) => {
+    switch (action) {
+      case 'getAudioTracks':
+        this.setMessage(this.stream.getAudioTracks());
+        break;
+      case 'getVideoTracks':
+        this.setMessage(this.stream.getVideoTracks());
+        break;
+      case 'getTracks':
+        this.setMessage(this.stream.getTracks());
+        break;
+      case 'popAudioTrack':
+        this.stream.removeTrack(this.stream.getAudioTracks()[0]);
+        break;
+      case 'popVideoTrack':
+        this.stream.removeTrack(this.stream.getVideoTracks()[0]);
+        break;
+      case 'printStreamObj':
+        console.log('STREAM OBJECT', this.stream);
+        this.setMessage('Printed to console');
+        break;
+      default:
+        console.log('Unsupported button function', action);
+        break;
+    }
   }
 
   setMessage (obj) {
     this.setState({ message: typeof obj === 'string' ? obj : JSON.stringify(obj, ['label', 'enabled', 'kind']) });
-  }
-
-  printStreamObj = () => {
-    console.log('STREAM OBJECT', this.stream);
-    this.setMessage('Printed to console');
   }
 
   getVideoStream = () => {
@@ -92,12 +93,12 @@ class App extends Component {
         <div className="buttons-area">
           HAS USER MEDIA: {"" + this.hasUserMedia()}
           <br />
-          <button onClick={this.getAudioTracks}>Show Audio Tracks</button>
-          <button onClick={this.getVideoTracks}>Show Video Tracks</button>
-          <button onClick={this.getTracks}>Show All Tracks</button>
-          <button onClick={this.popAudioTrack}>Pop Audio Tracks</button>
-          <button onClick={this.popVideoTrack}>Pop Video Tracks</button>
-          <button onClick={this.printStreamObj}>Print Stream Obj to Console</button>
+          <button onClick={() => this.handleDemoButtons('getAudioTracks')}>Show Audio Tracks</button>
+          <button onClick={() => this.handleDemoButtons('getVideoTracks')}>Show Video Tracks</button>
+          <button onClick={() => this.handleDemoButtons('getTracks')}>Show All Tracks</button>
+          <button onClick={() => this.handleDemoButtons('popAudioTrack')}>Pop Audio Tracks</button>
+          <button onClick={() => this.handleDemoButtons('popVideoTrack')}>Pop Video Tracks</button>
+          <button onClick={() => this.handleDemoButtons('printStreamObj')}>Print Stream Obj to Console</button>
           <button onClick={this.getVideoStream}>Get Video Stream</button>
         </div>
         <div>{message ? message : "---"}</div>

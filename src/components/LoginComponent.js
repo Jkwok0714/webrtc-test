@@ -1,11 +1,11 @@
 import React, { Component } from "react";
-import { PORT_NUMBER } from '../constants/index.js';
+import { PORT_NUMBER, STUN_SERVER } from '../constants/index.js';
 
 const iceConfig = {
-    iceServers: [{ url: 'stun:stun.1.google.com:19302' }]
+    iceServers: [{ url: STUN_SERVER }]
 };
 
-let webkitRTCPeerConnection;
+// let webkitRTCPeerConnection;
 
 export default class LoginComponent extends Component {
 
@@ -16,6 +16,8 @@ export default class LoginComponent extends Component {
         ownConnection: null
     };
     connection = null;
+    connectedUser = null;
+    rtcConnection = null;
 
     componentDidMount () {
         const socketUrl = `ws://localhost:${PORT_NUMBER}`;
@@ -27,9 +29,9 @@ export default class LoginComponent extends Component {
 
     applyListenersToSocket (connection) {
         connection.onmessage = (message) => {
-            console.log('Socket got message', message.data);
+            console.log('Socket got message:', message.data);
             let data;
-            
+
             try {
                 data = JSON.parse(message.data);
             } catch (e) {
@@ -38,21 +40,24 @@ export default class LoginComponent extends Component {
             }
 
             switch (data.type) {
-                case 'login':
-                    this.onLogin(data.success);
-                    break;
-                case 'offer':
-                    this.onOffer(data.offer, data.name);
-                    break;
-                case 'answer':
-                    this.onAnswer(data.answer);
-                    break;
-                case 'candidate':
-                    this.onCandidate(data.candidate);
-                    break;
-                default:
-                    console.error('You lose.');
-                    break;
+              case "login":
+                this.onLogin(data.success);
+                break;
+              case "offer":
+                this.onOffer(data.offer, data.name);
+                break;
+              case "answer":
+                this.onAnswer(data.answer);
+                break;
+              case "candidate":
+                this.onCandidate(data.candidate);
+                break;
+              case "serverMessage":
+                console.log("Server says:", data.message);
+                break;
+              default:
+                console.error("You lose.");
+                break;
             }
         };
 
@@ -82,7 +87,17 @@ export default class LoginComponent extends Component {
     }
 
     handleConnect = () => {
+        let otherUser = this.state.otherPeer;
+        let connectedUser = otherUser;
 
+        if (otherUser.trim().length > 0) {
+            //Create an offer if username is existing
+            this.rtcConnection.createOffer((offer) => {
+                console.log('Creating RTC offer');
+                this.send({ type: 'offer', offer: offer });
+                this.rtcConnection.setLocalDescription(offer);
+            }, err => window.alert('An error occured creating an offer', err));
+        }
     }
 
     send = (message) => {
@@ -99,7 +114,8 @@ export default class LoginComponent extends Component {
             return;
         }
 
-        let rtcConnection = new webkitRTCPeerConnection(iceConfig);
+        let rtcConnection = new RTCPeerConnection(iceConfig);
+        this.rtcConnection = rtcConnection;
         console.log('Created peer connection object', rtcConnection);
 
         //Configure ICE handling and inform other connections when it's found
@@ -111,6 +127,28 @@ export default class LoginComponent extends Component {
                 });
             }
         };
+    }
+
+    onOffer (offer, name) {
+        this.connectedUser = name;
+        this.rtcConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+        this.rtcConnection.createAnswer((answer) => {
+            this.rtcConnection.setLocalDescription(answer);
+
+            this.send({
+                type: 'answer',
+                answer: answer
+            });
+        }, err => window.alert('Error in handling an offer', err));
+    }
+
+    onAnswer (answer) {
+        this.rtcConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    }
+
+    onCandidate (candidate) {
+        this.rtcConnection.addIceCandidate(new RTCIceCandidate(candidate));
     }
 
     render () {

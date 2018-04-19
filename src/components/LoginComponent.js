@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { PORT_NUMBER, STUN_SERVER } from '../constants/index.js';
+import { PORT_NUMBER, STUN_SERVER, MAX_MESSAGE } from '../constants/index.js';
 
 import ChatAreaComponent from './ChatAreaComponent.js';
 import VideoCallComponent from './VideoCallComponent.jsx';
@@ -82,7 +82,7 @@ export default class LoginComponent extends Component {
                 this.onInstantMessage(data.message);
                 break;
               case "serverMessage":
-                console.log("Server says:", data.message);
+                this.displayMessage({ sender: 'Isaac Serverdown', message: data.message });
                 break;
               case 'leave':
                 this.onLeave();
@@ -266,6 +266,7 @@ export default class LoginComponent extends Component {
     displayMessage = (message) => {
         let newMessages = this.state.messages.slice(0);
         newMessages.push(message);
+        if (newMessages.length > MAX_MESSAGE) newMessages.shift();
         this.setState({ messages: newMessages });
     }
 

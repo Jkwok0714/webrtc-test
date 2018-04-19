@@ -4,6 +4,8 @@ import logo from './logo.svg';
 import './App.css';
 import LoginComponent from './components/LoginComponent.js';
 
+import { getUserMedia } from './helpers/index';
+
 class App extends Component {
   
   state = {
@@ -26,15 +28,16 @@ class App extends Component {
 
   hasUserMedia () {
     //Checks if Web RTC is supported, if getUserMedia exists
-    let result = !!this.getUserMedia();
+    let result = !!getUserMedia();
     if (!result) this.setMessage('WebRTC not supported on this browser');
     return result;
   }
 
-  getUserMedia () {
-    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
-
-    return navigator.getUserMedia;
+  componentWillUpdate (nextProps, nextState) {
+    if (nextState.loggedIn) {
+      //User just logged in, destroy stream
+      if (this.stream) this.stream.getTracks().forEach(track => this.stream.removeTrack(track));
+    }
   }
 
   handleDemoButtons = (action) => {
@@ -70,7 +73,7 @@ class App extends Component {
 
   getVideoStream = () => {
     //Set local getUserMedia object
-    this.getUserMedia();
+    getUserMedia();
 
     //Get webcam audio and video
     navigator.getUserMedia({

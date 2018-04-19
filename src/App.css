@@ -43,7 +43,7 @@
 }
 
 .chat-box {
-  margin: auto;
+  margin: 20px auto 20px auto;
   width: 60vw;
   height: 10vh;
   overflow-y: scroll;
@@ -61,6 +61,51 @@
 .login-form {
   margin-top: 10px;
   margin-bottom: 10px;
+}
+
+.video-chat-wrapper {
+  background-color: #ddd;
+  
+  margin: auto;
+
+  position: relative;
+  top: 20px;
+
+  width: 70vh;
+  height: 40vh;
+}
+
+.remote-video {
+  height: 100%;
+  max-width: 100%;
+}
+
+.local-video {
+  position: absolute;
+  width: auto;
+  height: 20%;
+
+  top: 1em;
+  right: 1em;
+
+  box-shadow: 5px 5px 2px rgba(0,0,0,0.25);
+}
+
+.user-list {
+  width: 60vw;
+  height: 20vh;
+  text-align: center;
+
+  margin: 20px auto 20px auto;
+}
+
+.user-list-item {
+  user-select: none;
+  cursor: pointer;
+}
+
+.user-list-item:hover {
+  color: #ef6330;
 }
 
 @keyframes App-logo-spin {

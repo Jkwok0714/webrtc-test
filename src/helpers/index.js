@@ -12,3 +12,9 @@ export const setChannelListeners = (dataChannel, callerComponent) => {
         callerComponent.displayMessage(messageObj);
     };
 };
+
+export const getUserMedia = () => {
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+    return navigator.getUserMedia;
+}

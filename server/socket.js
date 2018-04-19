@@ -30,6 +30,14 @@ exports.handleSocket = (connection, users) => {
           users[data.name] = connection;
           connection.name = data.name;
 
+          let userArray = Object.keys(users);
+          for (let user in users) {
+            Helpers.sendTo(users[user], {
+              type: 'userList',
+              users: JSON.stringify(userArray)
+            });
+          }
+
           Helpers.sendTo(connection, {
             type: "login",
             success: true

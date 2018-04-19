@@ -3,6 +3,7 @@ import { PORT_NUMBER, STUN_SERVER } from '../constants/index.js';
 
 import ChatAreaComponent from './ChatAreaComponent.js';
 import VideoCallComponent from './VideoCallComponent.jsx';
+import UserListComponent from './UserListComponent';
 
 import { setChannelListeners } from '../helpers/index';
 
@@ -19,28 +20,36 @@ const IP = '192.168.38.23';
 */
 
 export default class LoginComponent extends Component {
-
     state = {
         ownPeer: '',
         otherPeer: '',
         message: '',
-        connectedUser: null,
-        ownConnection: null,
         loggedIn: null,
         connectedTo: '',
-        messages: []
+        messages: [],
+        localStream: null,
+        remoteStream: null,
+        userList: []
     };
+
     connection = null;
     connectedUser = null;
     rtcConnection = null;
     dataChannel = null;
+    stream = null;
 
     componentDidMount () {
-        const socketUrl = `wss://${IP}:${PORT_NUMBER}`;
+        let start = window.location.href.split('/').slice(0, 3);
+        start[0] = 'wss:';
+        const socketUrl = start.join('/');
         console.log('connecting socket address', socketUrl);
         this.connection = new WebSocket(socketUrl);
 
         this.applyListenersToSocket(this.connection);
+
+        window.showState = () => {
+            console.log('STATE:', this.state);
+        }
     }
 
     applyListenersToSocket (connection) {
@@ -74,6 +83,12 @@ export default class LoginComponent extends Component {
                 break;
               case "serverMessage":
                 console.log("Server says:", data.message);
+                break;
+              case 'leave':
+                this.onLeave();
+                break;
+              case 'userList':
+                this.onUserList(data.users);
                 break;
               default:
                 console.error("You lose.");
@@ -132,31 +147,50 @@ export default class LoginComponent extends Component {
         this.connection.send(JSON.stringify(message));
     }
 
+    onUserList (userList) {
+        this.setState({ userList: JSON.parse(userList) });
+    }
+
     onLogin (success) {
         if (!success) {
             window.alert('Username login failed.');
             return;
         }
 
-        let rtcConnection = new RTCPeerConnection(iceConfig);
+        navigator.getUserMedia({ video: true, audio: true }, (stream) => {
+            this.stream = stream;
 
-        this.rtcConnection = rtcConnection;
-        console.log('Created peer connection object', rtcConnection);
-        this.setState({ loggedIn: this.state.ownPeer });
-        this.props.loginChange(true);
+            //Set local video source
+            this.setState({ localStream: stream });
 
-        //Configure ICE handling and inform other connections through socket when it's found
-        rtcConnection.onicecandidate = (e) => {
-            if (e.candidate) {
-                this.send({
-                    type: 'candidate',
-                    candidate: e.candidate
-                });
+            let rtcConnection = new RTCPeerConnection(iceConfig);
+
+            //Attach stream listening and behavior for getting remote stream
+            rtcConnection.addStream(stream);
+            rtcConnection.onaddstream = (e) => {
+                console.log('InAddStream for Peer Connection', e);
+                this.setState({ remoteStream: e.stream });
             }
-        };
+    
+            //Configure ICE handling and inform other connections through socket when it's found
+            rtcConnection.onicecandidate = (e) => {
+                if (e.candidate) {
+                    this.send({
+                        type: 'candidate',
+                        candidate: e.candidate
+                    });
+                }
+            };
+            
+            this.rtcConnection = rtcConnection;
+            console.log('Created peer connection object', rtcConnection);
+            this.setState({ loggedIn: this.state.ownPeer });
+            this.props.loginChange(true);
 
-        //Establish data channel
-        this.openDataChannel();
+            //Establish data channel
+            this.openDataChannel();
+        }, err => console.error('Getusermedia error', err));
+
     }
 
     //For when user is being called
@@ -194,6 +228,15 @@ export default class LoginComponent extends Component {
         window.alert(message);
     }
 
+    onLeave () {
+        this.connectedUser = null;
+        this.rtcConnection.close();
+        this.rtcConnection.onicecandidate = null;
+        this.rtcConnection.onaddstream = null;
+
+        this.setState({ remoteStream: null, otherPeer: '' });
+    }
+
     handleMessage = () => {
         // this.send({
         //     type: 'instantMessage',
@@ -226,8 +269,13 @@ export default class LoginComponent extends Component {
         this.setState({ messages: newMessages });
     }
 
+    handleSetOtherPeer = (name) => {
+        if (name === this.state.loggedIn) return;
+        this.setState({ otherPeer: name });
+    }
+
     render () {
-        const { ownPeer, otherPeer, loggedIn, message, connectedTo, messages } = this.state;
+        const { ownPeer, otherPeer, loggedIn, message, connectedTo, messages, remoteStream, localStream } = this.state;
 
         return <div className="login-form">
             {!loggedIn ? <div className="login-field">
@@ -242,11 +290,13 @@ export default class LoginComponent extends Component {
                     <ChatAreaComponent messages={messages} />
                      <input onChange={e => this.changeValue("message", e)} value={message} type="text" />
                      <button onClick={this.handleMessage}>Send</button>
+                     <VideoCallComponent remoteStream={remoteStream} localStream={localStream} />
                     </div>
                  ) : (
                      <div className="login-field">
                      <input onChange={e => this.changeValue("otherPeer", e)} value={otherPeer} type="text" />
                      <button onClick={this.handleConnect}>Connect</button>
+                     <UserListComponent userList={this.state.userList} handleSetOtherPeer={this.handleSetOtherPeer} />
                      </div>
                  )}
               </div>}

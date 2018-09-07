@@ -11,7 +11,7 @@ const WebSocketServer = require('ws').Server;
 const Helpers = require('./helpers/index.js');
 const handleSocket = require('./socket.js').handleSocket;
 
-const PORT_NUMBER = 3000;
+const PORT_NUMBER = 3007;
 const SOCKET_PORT = 9090;
 
 //Local cache storage

@@ -16,7 +16,6 @@ const IP = '192.168.38.23';
 /*
     TODO:
         --Move login state and messaging out of loginComponent
-
 */
 
 export default class LoginComponent extends Component {
@@ -171,7 +170,7 @@ export default class LoginComponent extends Component {
                 console.log('InAddStream for Peer Connection', e);
                 this.setState({ remoteStream: e.stream });
             }
-    
+
             //Configure ICE handling and inform other connections through socket when it's found
             rtcConnection.onicecandidate = (e) => {
                 if (e.candidate) {
@@ -181,7 +180,7 @@ export default class LoginComponent extends Component {
                     });
                 }
             };
-            
+
             this.rtcConnection = rtcConnection;
             console.log('Created peer connection object', rtcConnection);
             this.setState({ loggedIn: this.state.ownPeer });
